@@ -10,7 +10,7 @@ public class GridManager : MonoBehaviour
     public float cellSize = 1.0f;
     public GameObject[] candyPrefabs;
     public GameObject borderPrefab;
-    private GameObject[,] grid;
+    public GameObject[,] grid;
 
     private GameObject selectedCandy = null; // Store the first selected candy
     private Vector3 mouseDownPosition;      // Position where the mouse button was pressed
@@ -24,7 +24,6 @@ public class GridManager : MonoBehaviour
         grid = new GameObject[columns, rows]; // Initialize the grid
         GenerateGridWithoutMatches(); // Generate the initial grid with candies
     }
-
     // Generate the initial board without matches
     void GenerateGridWithoutMatches()
     {
@@ -67,8 +66,6 @@ public class GridManager : MonoBehaviour
             }
         }
     }
-
-
     List<string> GetPossibleCandyTags(int col, int row)
     {
         List<string> possibleCandyTags = new List<string>();
@@ -81,8 +78,6 @@ public class GridManager : MonoBehaviour
         }
         return possibleCandyTags;
     }
-
-
     // Clear the grid
     void ClearGrid()
     {
@@ -120,54 +115,6 @@ public class GridManager : MonoBehaviour
 
         return false; // No match found
     }
-
-    //IEnumerator CheckForInitialMatches()
-    //{
-    //    yield return new WaitForSeconds(0.35f);
-    //    CheckForMatches(false); // Perform a standard match check
-    //}
-
-    // Generate the grid of candies with borders
-    //void GenerateGrid()
-    //{
-    //    for (int row = 0; row < rows; row++)
-    //    {
-    //        for (int col = 0; col < columns; col++)
-    //        {
-    //            SpawnCandyWithBorder(col, row); // Spawn each candy with a border
-    //        }
-    //    }
-    //}
-
-    // Spawns a candy with a border and animates the falling
-    //void SpawnCandyWithBorder(int col, int row)
-    //{
-    //    Vector3 position = new Vector3(col * cellSize, (rows + 1) * cellSize, 0); // Start position above the grid
-
-    //    if (borderPrefab != null)
-    //    {
-    //        GameObject border = Instantiate(borderPrefab, position, Quaternion.identity); // Instantiate the border
-    //        border.name = $"Border_{row}_{col}";
-    //        border.transform.parent = transform;
-    //    }
-
-    //    if (candyPrefabs != null && candyPrefabs.Length > 0)
-    //    {
-    //        int randomIndex = Random.Range(0, candyPrefabs.Length); // Randomly choose a candy prefab
-    //        GameObject candy = Instantiate(candyPrefabs[randomIndex], position, Quaternion.identity); // Instantiate the candy
-    //        candy.name = $"Candy_{row}_{col}";
-    //        candy.transform.parent = transform;
-
-    //        grid[col, row] = candy; // Add the candy to the grid
-
-    //        StartCoroutine(FallCandy(candy, new Vector3(col * cellSize, row * -cellSize, 0))); // Start the fall animation
-    //    }
-    //    else
-    //    {
-    //        Debug.LogError("Candy prefabs array is empty or null!");
-    //    }
-    //}
-
     // Coroutine to animate the candy falling into position
     IEnumerator FallCandy(GameObject candy, Vector3 targetPosition)
     {
@@ -274,20 +221,12 @@ public class GridManager : MonoBehaviour
 
         return hasMatches;
     }
-
-    
-
-
     IEnumerator DelayedRefillGrid()
     {
         yield return new WaitForSeconds(0.5f); // Delay to allow effects to finish
         CollapseGrid(); // Collapse columns to shift candies down
         yield return new WaitForSeconds(0.6f); // Adjust based on shrinkDuration and popEffect duration
-        //StartCoroutine(RefillGrid());
     }
-
-    
-
     // Select the first candy (called from CandyController)
     public void SelectFirstCandy(GameObject candy)
     {
@@ -298,29 +237,51 @@ public class GridManager : MonoBehaviour
     }
 
     // Select the target candy and swap if valid (called from CandyController)
+    // Select the target candy and swap if valid (only if adjacent)
     public void SelectTargetCandy(GameObject candy)
     {
         if (selectedCandy != null && selectedCandy != candy)
         {
-            candy1 = selectedCandy;
-            candy2 = candy;
+            // Get the grid positions of the selected and target candies
+            int selectedCandyCol = Mathf.RoundToInt(selectedCandy.transform.position.x / cellSize);
+            int selectedCandyRow = Mathf.RoundToInt(-selectedCandy.transform.position.y / cellSize);
+            int targetCandyCol = Mathf.RoundToInt(candy.transform.position.x / cellSize);
+            int targetCandyRow = Mathf.RoundToInt(-candy.transform.position.y / cellSize);
 
-            // Store original positions of candies before swapping
-            Vector3 candy1OriginalPos = candy1.transform.position;
-            Vector3 candy2OriginalPos = candy2.transform.position;
+            // Check if the candies are adjacent (horizontally or vertically)
+            bool areAdjacent = (Mathf.Abs(selectedCandyCol - targetCandyCol) == 1 && selectedCandyRow == targetCandyRow) ||
+                               (Mathf.Abs(selectedCandyRow - targetCandyRow) == 1 && selectedCandyCol == targetCandyCol);
 
-            // Animate the swapping
-            StartCoroutine(SwapCandies(candy1, candy2, candy1OriginalPos, candy2OriginalPos));
+            // Only swap if the candies are adjacent
+            if (areAdjacent)
+            {
+                candy1 = selectedCandy;
+                candy2 = candy;
 
-            // Reset selection
-            selectedCandy = null;
+                // Store original positions of candies before swapping
+                Vector3 candy1OriginalPos = candy1.transform.position;
+                Vector3 candy2OriginalPos = candy2.transform.position;
+
+                // Animate the swapping
+                StartCoroutine(SwapCandies(candy1, candy2, candy1OriginalPos, candy2OriginalPos));
+
+                // Reset selection
+                selectedCandy = null;
+            }
+            else
+            {
+                // Optionally, you could provide feedback to the player if the candies are not adjacent
+                // Reset selection
+                selectedCandy = null;
+                Debug.Log("Selected candy is not adjacent to the target candy.");
+            }
         }
     }
+
     IEnumerator DelayedCollapseAndRefill()
     {
         yield return new WaitForSeconds(0.5f); // Delay to allow effects to finish
         CollapseGrid(); // Collapse columns to shift candies down
-        //StartCoroutine(RefillGrid()); // Refill the grid after collapse
     }
     void CollapseColumn(int col)
     {
@@ -355,7 +316,7 @@ public class GridManager : MonoBehaviour
                 // Spawn a new candy just above the grid (row 0)
                 GameObject newCandy = Instantiate(
                     candyPrefabs[Random.Range(0, candyPrefabs.Length)],
-                    new Vector3(col * cellSize, rows * cellSize, 0), // Spawn above the grid
+                    new Vector3(col * cellSize, (rows+1) * cellSize, 0), // Spawn above the grid
                     Quaternion.identity
                 );
                 newCandy.transform.parent = transform; // Make sure it is a child of the Grid Manager
@@ -368,9 +329,6 @@ public class GridManager : MonoBehaviour
             }
         }
     }
-
-
-
 
     // Call this collapse method after checking and removing matches
     void CollapseGrid()
@@ -437,66 +395,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-
-    // Coroutine to refill the grid after candy matches
-    //IEnumerator RefillGrid()
-    //{
-    //    bool isGridFilled = false;
-
-    //    // Repeat the refill process until all gaps are filled
-    //    while (!isGridFilled)
-    //    {
-    //        isGridFilled = true;
-
-    //        // Fill empty spaces in each column
-    //        for (int col = 0; col < columns; col++)
-    //        {
-    //            for (int row = rows - 1; row >= 0; row--)
-    //            {
-    //                if (grid[col, row] == null)
-    //                {
-    //                    isGridFilled = false; // There's still an empty space
-
-    //                    // Shift candies down from above
-    //                    for (int aboveRow = row - 1; aboveRow >= 0; aboveRow--)
-    //                    {
-    //                        if (grid[col, aboveRow] != null)
-    //                        {
-    //                            grid[col, row] = grid[col, aboveRow];
-    //                            grid[col, row].transform.position = new Vector3(col * cellSize, row * -cellSize, 0);
-    //                            grid[col, aboveRow] = null;
-    //                            break;
-    //                        }
-    //                    }
-
-    //                    // If no candy above, spawn a new candy
-    //                    if (grid[col, row] == null)
-    //                    {
-    //                        GameObject newCandy = Instantiate(
-    //                            candyPrefabs[Random.Range(0, candyPrefabs.Length)],
-    //                            new Vector3(col * cellSize, (rows + 1) * cellSize, 0), // Start above the grid
-    //                            Quaternion.identity
-    //                        );
-    //                        newCandy.transform.parent = transform;
-
-    //                        // Start falling animation after spawning
-    //                        StartCoroutine(FallCandy(newCandy, new Vector3(col * cellSize, row * -cellSize, 0)));
-    //                        grid[col, row] = newCandy;
-    //                    }
-    //                }
-    //            }
-    //        }
-
-    //        yield return new WaitForSeconds(0.2f); // Delay to allow for visual effects
-    //    }
-
-    //    // Check for new matches after the refill
-    //    if (CheckForMatches())
-    //    {
-    //        // If new matches are found, repeat the refill process
-    //        yield return StartCoroutine(DelayedRefillGrid());
-    //    }
-    //}
 }
 
 
